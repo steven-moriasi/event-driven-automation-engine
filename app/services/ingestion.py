@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.metrics import EVENTS_INGESTED
 from app.domain.enums import EventStatus
 from app.domain.models import Delivery, InboundEvent, Subscription
 from app.domain.schemas import EventEnvelope, EventResponse
@@ -57,6 +58,7 @@ def ingest_event(
         if existing is None:
             raise
         if existing.payload_hash != digest:
+            EVENTS_INGESTED.labels(outcome="conflict").inc()
             raise IdempotencyConflictError(
                 "Event identifier was reused with a different payload"
             ) from error
@@ -65,6 +67,7 @@ def ingest_event(
             .select_from(Delivery)
             .where(Delivery.event_id == existing.id)
         )
+        EVENTS_INGESTED.labels(outcome="duplicate").inc()
         return event_response(existing, duplicate=True, delivery_count=delivery_count or 0)
 
     subscriptions = session.scalars(
@@ -93,6 +96,7 @@ def ingest_event(
         details={"delivery_count": len(subscriptions)},
     )
     session.commit()
+    EVENTS_INGESTED.labels(outcome="accepted").inc()
     return event_response(
         event,
         duplicate=False,
