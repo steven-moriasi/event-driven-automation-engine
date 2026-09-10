@@ -38,6 +38,8 @@ services:
     build: .
     command: ["python", "-m", "app.worker"]
     environment: *application-environment
+    healthcheck:
+      disable: true
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -46,6 +48,8 @@ services:
     build: .
     command: ["python", "-m", "app.reaper"]
     environment: *application-environment
+    healthcheck:
+      disable: true
     depends_on:
       migrate:
         condition: service_completed_successfully
