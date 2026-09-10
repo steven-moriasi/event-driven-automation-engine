@@ -2,6 +2,7 @@ import time
 from uuid import uuid4
 
 import structlog
+from prometheus_client import start_http_server
 
 from app.core.config import get_settings
 from app.core.logging import configure_logging
@@ -17,6 +18,7 @@ def run() -> None:
     settings = get_settings()
     worker_id = f"delivery-worker:{uuid4()}"
     registry = AdapterRegistry(settings)
+    start_http_server(settings.process_metrics_port)
     logger.info("worker_started", worker_id=worker_id)
     while True:
         with SessionLocal() as session:

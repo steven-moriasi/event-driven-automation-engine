@@ -38,8 +38,20 @@ services:
     build: .
     command: ["python", "-m", "app.worker"]
     environment: *application-environment
+    expose:
+      - "9100"
     healthcheck:
-      disable: true
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9100/metrics', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -48,8 +60,20 @@ services:
     build: .
     command: ["python", "-m", "app.reaper"]
     environment: *application-environment
+    expose:
+      - "9100"
     healthcheck:
-      disable: true
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9100/metrics', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
     depends_on:
       migrate:
         condition: service_completed_successfully

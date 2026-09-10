@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     retry_max_seconds: int = Field(default=900, ge=1, le=86400)
     worker_poll_seconds: float = Field(default=1, ge=0.1, le=60)
     recovery_interval_seconds: float = Field(default=15, ge=1, le=3600)
+    process_metrics_port: int = Field(default=9100, ge=1024, le=65535)
 
 
 @lru_cache
