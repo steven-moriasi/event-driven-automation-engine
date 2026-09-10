@@ -18,6 +18,7 @@ services:
     build: .
     command: ["alembic", "upgrade", "head"]
     environment: &application-environment
+      EVENT_ENGINE_ENVIRONMENT: development
       EVENT_ENGINE_DATABASE_URL: postgresql+psycopg://event_engine:${POSTGRES_PASSWORD:-local-development-only}@db:5432/event_engine
       EVENT_ENGINE_WEBHOOK_SECRETS: ${EVENT_ENGINE_WEBHOOK_SECRETS:-{"partner":"local-webhook-secret"}}
       EVENT_ENGINE_DELIVERY_SIGNING_SECRET: ${EVENT_ENGINE_DELIVERY_SIGNING_SECRET:-local-delivery-secret}
@@ -34,7 +35,7 @@ services:
       migrate:
         condition: service_completed_successfully
     ports:
-      - "${EVENT_ENGINE_API_PORT:-8002}:8000"
+      - "127.0.0.1:${EVENT_ENGINE_API_PORT:-8002}:8000"
 
   worker:
     build: .
