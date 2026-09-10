@@ -90,6 +90,9 @@ class DeliveryProcessor:
         now: datetime | None = None,
     ) -> bool:
         processed_at = now or utc_now()
+        if not self._owns_lease(delivery, worker_id, processed_at):
+            self.session.rollback()
+            return False
         event = self.session.get(InboundEvent, delivery.event_id)
         subscription = self.session.get(Subscription, delivery.subscription_id)
         if event is None or subscription is None:
@@ -304,6 +307,23 @@ class DeliveryProcessor:
     def _correlation_id(self, event_id: str) -> str:
         event = self.session.get(InboundEvent, event_id)
         return event.correlation_id if event is not None else event_id
+
+    def _owns_lease(
+        self,
+        delivery: Delivery,
+        worker_id: str,
+        processed_at: datetime,
+    ) -> bool:
+        delivery_id = self.session.scalar(
+            select(Delivery.id).where(
+                Delivery.id == delivery.id,
+                Delivery.status == DeliveryStatus.DELIVERING,
+                Delivery.worker_id == worker_id,
+                Delivery.fencing_token == delivery.fencing_token,
+                Delivery.lease_expires_at >= processed_at,
+            )
+        )
+        return delivery_id is not None
 
 
 def retry_delay(
