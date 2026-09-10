@@ -37,7 +37,13 @@ class Subscription(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     name: Mapped[str] = mapped_column(String(120), unique=True)
     event_type: Mapped[str] = mapped_column(String(160), index=True)
-    adapter_type: Mapped[AdapterType] = mapped_column(Enum(AdapterType, native_enum=False))
+    adapter_type: Mapped[AdapterType] = mapped_column(
+        Enum(
+            AdapterType,
+            native_enum=False,
+            values_callable=lambda enum: [item.value for item in enum],
+        )
+    )
     endpoint_url: Mapped[str] = mapped_column(String(2048))
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
     created_at: Mapped[datetime] = mapped_column(
@@ -67,7 +73,11 @@ class InboundEvent(Base):
     payload: Mapped[dict[str, JsonValue]] = mapped_column(JSON)
     payload_hash: Mapped[str] = mapped_column(String(64))
     status: Mapped[EventStatus] = mapped_column(
-        Enum(EventStatus, native_enum=False),
+        Enum(
+            EventStatus,
+            native_enum=False,
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
         default=EventStatus.RECEIVED,
         server_default=EventStatus.RECEIVED.value,
     )
@@ -87,16 +97,22 @@ class Delivery(Base):
     subscription_id: Mapped[str] = mapped_column(ForeignKey("subscriptions.id"), index=True)
     idempotency_key: Mapped[str] = mapped_column(String(255))
     status: Mapped[DeliveryStatus] = mapped_column(
-        Enum(DeliveryStatus, native_enum=False),
+        Enum(
+            DeliveryStatus,
+            native_enum=False,
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
         default=DeliveryStatus.PENDING,
         server_default=DeliveryStatus.PENDING.value,
     )
     attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    replay_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     fencing_token: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     worker_id: Mapped[str | None] = mapped_column(String(255))
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_replayed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     response_code: Mapped[int | None] = mapped_column(Integer)
     error_code: Mapped[str | None] = mapped_column(String(120))
     error_message: Mapped[str | None] = mapped_column(Text)

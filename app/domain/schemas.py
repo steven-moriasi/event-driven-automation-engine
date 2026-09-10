@@ -54,6 +54,7 @@ class DeliveryResponse(BaseModel):
     subscription_id: str
     status: DeliveryStatus
     attempts: int
+    replay_count: int
     available_at: datetime
     delivered_at: datetime | None
     error_code: str | None
