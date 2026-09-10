@@ -34,6 +34,7 @@ def claimable_delivery(now: datetime) -> Select[tuple[Delivery]]:
         )
         .order_by(Delivery.available_at, Delivery.created_at)
         .limit(1)
+        .execution_options(populate_existing=True)
     )
 
 
