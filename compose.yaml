@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:17.5-bookworm
+    restart: unless-stopped
     environment:
       POSTGRES_DB: event_engine
       POSTGRES_USER: event_engine
@@ -27,6 +28,7 @@ services:
 
   api:
     build: .
+    restart: unless-stopped
     environment: *application-environment
     depends_on:
       migrate:
@@ -36,6 +38,7 @@ services:
 
   worker:
     build: .
+    restart: unless-stopped
     command: ["python", "-m", "app.worker"]
     environment: *application-environment
     expose:
@@ -58,6 +61,7 @@ services:
 
   reaper:
     build: .
+    restart: unless-stopped
     command: ["python", "-m", "app.reaper"]
     environment: *application-environment
     expose:
