@@ -1,5 +1,6 @@
 import hashlib
 from datetime import UTC, datetime, timedelta
+from typing import Protocol, cast
 
 from sqlalchemy import Select, and_, or_, select, update
 from sqlalchemy.orm import Session
@@ -9,6 +10,10 @@ from app.domain.enums import DeliveryStatus
 from app.domain.models import ConsumerCheckpoint, Delivery, InboundEvent, Subscription
 from app.services.adapters import DeliveryAdapter, DeliveryResult
 from app.services.audit import append_audit
+
+
+class _RowCountResult(Protocol):
+    rowcount: int
 
 
 def utc_now() -> datetime:
@@ -60,16 +65,19 @@ def claim_next_delivery(
         condition.append(Delivery.lease_expires_at < claimed_at)
     else:
         condition.append(Delivery.available_at <= claimed_at)
-    claimed = session.execute(
-        update(Delivery)
-        .where(*condition)
-        .values(
-            status=DeliveryStatus.DELIVERING,
-            worker_id=worker_id,
-            lease_expires_at=claimed_at + timedelta(seconds=lease_seconds),
-            fencing_token=previous_token + 1,
+    claimed = cast(
+        _RowCountResult,
+        session.execute(
+            update(Delivery)
+            .where(*condition)
+            .values(
+                status=DeliveryStatus.DELIVERING,
+                worker_id=worker_id,
+                lease_expires_at=claimed_at + timedelta(seconds=lease_seconds),
+                fencing_token=previous_token + 1,
+            )
+            .execution_options(synchronize_session=False)
         )
-        .execution_options(synchronize_session=False)
     )
     session.commit()
     if claimed.rowcount != 1:
@@ -193,29 +201,32 @@ class DeliveryProcessor:
             )
             action = "delivery_retry_scheduled"
             delivered_at = None
-        finalized = self.session.execute(
-            update(Delivery)
-            .where(
-                Delivery.id == delivery.id,
-                Delivery.status == DeliveryStatus.DELIVERING,
-                Delivery.worker_id == worker_id,
-                Delivery.fencing_token == delivery.fencing_token,
-                Delivery.lease_expires_at >= processed_at,
+        finalized = cast(
+            _RowCountResult,
+            self.session.execute(
+                update(Delivery)
+                .where(
+                    Delivery.id == delivery.id,
+                    Delivery.status == DeliveryStatus.DELIVERING,
+                    Delivery.worker_id == worker_id,
+                    Delivery.fencing_token == delivery.fencing_token,
+                    Delivery.lease_expires_at >= processed_at,
+                )
+                .values(
+                    status=next_status,
+                    attempts=attempt,
+                    available_at=available_at,
+                    worker_id=None,
+                    lease_expires_at=None,
+                    delivered_at=delivered_at,
+                    response_code=result.status_code,
+                    error_code=result.error_code,
+                    error_message=(
+                        result.error_message[:1000] if result.error_message is not None else None
+                    ),
+                )
+                .execution_options(synchronize_session=False)
             )
-            .values(
-                status=next_status,
-                attempts=attempt,
-                available_at=available_at,
-                worker_id=None,
-                lease_expires_at=None,
-                delivered_at=delivered_at,
-                response_code=result.status_code,
-                error_code=result.error_code,
-                error_message=(
-                    result.error_message[:1000] if result.error_message is not None else None
-                ),
-            )
-            .execution_options(synchronize_session=False)
         )
         if finalized.rowcount != 1:
             self.session.rollback()
@@ -244,24 +255,27 @@ class DeliveryProcessor:
         processed_at: datetime,
         available_at: datetime | None = None,
     ) -> bool:
-        finalized = self.session.execute(
-            update(Delivery)
-            .where(
-                Delivery.id == delivery.id,
-                Delivery.status == DeliveryStatus.DELIVERING,
-                Delivery.worker_id == delivery.worker_id,
-                Delivery.fencing_token == delivery.fencing_token,
-                Delivery.lease_expires_at >= processed_at,
+        finalized = cast(
+            _RowCountResult,
+            self.session.execute(
+                update(Delivery)
+                .where(
+                    Delivery.id == delivery.id,
+                    Delivery.status == DeliveryStatus.DELIVERING,
+                    Delivery.worker_id == delivery.worker_id,
+                    Delivery.fencing_token == delivery.fencing_token,
+                    Delivery.lease_expires_at >= processed_at,
+                )
+                .values(
+                    status=status,
+                    available_at=available_at or delivery.available_at,
+                    worker_id=None,
+                    lease_expires_at=None,
+                    error_code=error_code,
+                    error_message=error_message,
+                )
+                .execution_options(synchronize_session=False)
             )
-            .values(
-                status=status,
-                available_at=available_at or delivery.available_at,
-                worker_id=None,
-                lease_expires_at=None,
-                error_code=error_code,
-                error_message=error_message,
-            )
-            .execution_options(synchronize_session=False)
         )
         if finalized.rowcount != 1:
             self.session.rollback()
