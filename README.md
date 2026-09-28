@@ -102,6 +102,15 @@ CI repeats quality, PostgreSQL migration round-trip, and container build checks.
 - [Failure Model](docs/FAILURE_MODEL.md)
 - [Threat Model](docs/THREAT_MODEL.md)
 - [Operations Runbook](docs/OPERATIONS.md)
-- [Portfolio Evidence](docs/PORTFOLIO_EVIDENCE.md)
-- [Principal Engineer Review](docs/PRINCIPAL_ENGINEER_REVIEW.md)
 - [Roadmap](docs/ROADMAP.md)
+
+## Limits
+
+- The repository does not establish production throughput, latency, availability, or recovery
+  objectives.
+- It does not guarantee zero event loss, exactly-once side effects, or strict concurrent ordering
+  for the same subject under every failure.
+- It does not establish provider certification, production account operation, regulatory
+  compliance, penetration testing, or complete threat coverage.
+- It makes no claim about client work, historical deployment, savings, adoption, or business
+  outcomes.
